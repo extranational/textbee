@@ -1,8 +1,11 @@
+import org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag
+
 plugins {
     id 'com.android.application'
     id 'com.google.gms.google-services'
     id 'com.google.firebase.crashlytics'
     id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
 
 def releaseSigning = [
@@ -19,12 +22,12 @@ def missingReleaseSigningVariables = {
 }
 
 android {
-    namespace "com.viewridgesecurity.smsgateway"
-    compileSdk 34
+    namespace = "com.viewridgesecurity.smsgateway"
+    compileSdk = 34
 
     defaultConfig {
-        minSdk 24
-        targetSdk 34
+        minSdk = 24
+        targetSdk = 34
         versionCode 18
         versionName "2.8.0"
 
@@ -75,7 +78,7 @@ android {
         prod {
             dimension "environment"
             applicationId "com.viewridgesecurity.smsgateway"
-            signingConfig signingConfigs.productionRelease
+            signingConfig = signingConfigs.productionRelease
             buildConfigField "String", "API_BASE_URL", '"https://sms.viewridgesecurity.com/api/v1/"'
             buildConfigField "String", "ENVIRONMENT", '"production"'
             resValue "string", "app_name", "textbee.dev"
@@ -89,15 +92,18 @@ android {
 
     kotlinOptions {
         jvmTarget = '1.8'
+        languageVersion = '1.9'
     }
 
     buildFeatures {
-        compose true
+        compose = true
+        buildConfig = true
     }
+}
 
-    composeOptions {
-        kotlinCompilerExtensionVersion '1.4.8'
-    }
+composeCompiler {
+    // Compose compiler 1.4.8 did not use strong skipping; preserve that behavior.
+    featureFlags = [ComposeFeatureFlag.StrongSkipping.disabled()]
 }
 
 gradle.taskGraph.whenReady { taskGraph ->
