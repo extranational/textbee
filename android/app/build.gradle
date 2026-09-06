@@ -5,7 +5,21 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+def releaseSigning = [
+    storeFile    : System.getenv('TEXTBEE_RELEASE_STORE_FILE'),
+    storePassword: System.getenv('TEXTBEE_RELEASE_STORE_PASSWORD'),
+    keyAlias     : System.getenv('TEXTBEE_RELEASE_KEY_ALIAS'),
+    keyPassword  : System.getenv('TEXTBEE_RELEASE_KEY_PASSWORD')
+]
+
+def missingReleaseSigningVariables = {
+    releaseSigning.findAll { entry ->
+        entry.value == null || entry.value.trim().isEmpty()
+    }.keySet()
+}
+
 android {
+    namespace "com.viewridgesecurity.smsgateway"
     compileSdk 34
 
     defaultConfig {
@@ -23,11 +37,15 @@ android {
 //        }
     }
     signingConfigs {
-        debug {
-            storeFile file("${System.getenv("HOME")}/.android/debug.keystore")
-            storePassword "android"
-            keyAlias "androiddebugkey"
-            keyPassword "android"
+        productionRelease {
+            // Leave the configuration incomplete during IDE sync and debug builds.
+            // The task-graph check below fails any prodRelease build explicitly.
+            if (missingReleaseSigningVariables().isEmpty()) {
+                storeFile file(releaseSigning.storeFile)
+                storePassword releaseSigning.storePassword
+                keyAlias releaseSigning.keyAlias
+                keyPassword releaseSigning.keyPassword
+            }
         }
     }
 
@@ -35,13 +53,10 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // TODO: Change to release signing config
-            signingConfig signingConfigs.debug
         }
         debug {
             minifyEnabled false
             debuggable true
-            signingConfig signingConfigs.debug
         }
     }
 
@@ -50,7 +65,7 @@ android {
     productFlavors {
         dev {
             dimension "environment"
-            applicationId "com.vernu.sms.dev"
+            applicationId "com.viewridgesecurity.smsgateway.dev"
             versionNameSuffix "-dev"
             buildConfigField "String", "API_BASE_URL", '"https://api.dev.textbee.dev/api/v1/"'
             buildConfigField "String", "ENVIRONMENT", '"development"'
@@ -59,8 +74,9 @@ android {
         
         prod {
             dimension "environment"
-            applicationId "com.vernu.sms"
-            buildConfigField "String", "API_BASE_URL", '"https://api.textbee.dev/api/v1/"'
+            applicationId "com.viewridgesecurity.smsgateway"
+            signingConfig signingConfigs.productionRelease
+            buildConfigField "String", "API_BASE_URL", '"https://sms.viewridgesecurity.com/api/v1/"'
             buildConfigField "String", "ENVIRONMENT", '"production"'
             resValue "string", "app_name", "textbee.dev"
         }
@@ -81,6 +97,36 @@ android {
 
     composeOptions {
         kotlinCompilerExtensionVersion '1.4.8'
+    }
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    def buildsProdRelease = taskGraph.allTasks.any { task ->
+        task.project == project && task.name.toLowerCase(Locale.ROOT).contains('prodrelease')
+    }
+
+    if (buildsProdRelease) {
+        def missingVariables = missingReleaseSigningVariables()
+        if (!missingVariables.isEmpty()) {
+            def environmentNames = [
+                storeFile    : 'TEXTBEE_RELEASE_STORE_FILE',
+                storePassword: 'TEXTBEE_RELEASE_STORE_PASSWORD',
+                keyAlias     : 'TEXTBEE_RELEASE_KEY_ALIAS',
+                keyPassword  : 'TEXTBEE_RELEASE_KEY_PASSWORD'
+            ]
+            def missingEnvironmentNames = missingVariables.collect { environmentNames[it] }.sort()
+            throw new GradleException(
+                "Production release signing is not configured. Missing environment variables: " +
+                    missingEnvironmentNames.join(', ')
+            )
+        }
+
+        def releaseStoreFile = file(releaseSigning.storeFile)
+        if (!releaseStoreFile.isFile()) {
+            throw new GradleException(
+                "Production release keystore does not exist or is not a file: ${releaseStoreFile}"
+            )
+        }
     }
 }
 
