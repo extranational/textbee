@@ -5,5 +5,8 @@
 .cursor
 .claude/
 .omc/
+/.env
+/api/.env
+/web/.env
 # Rendered email previews (pnpm preview:emails)
 api/tmp/

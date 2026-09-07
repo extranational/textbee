@@ -232,31 +232,61 @@ See [textbee.dev](https://textbee.dev) for current plans and limits. You can alw
    pm2 start dist/main.js --name textbee-api
    ```
 3. Configure `Caddy` to serve your web application and API. Example Caddyfile:
-   ```
-   textbee.dev {
-       reverse_proxy /api/* localhost:3000
-       reverse_proxy /* localhost:3001
-   }
-   ```
+    ```
+    textbee.dev {
+        reverse_proxy /api/v1/* localhost:3001
+        reverse_proxy /* localhost:3000
+    }
+    ```
 4. Ensure your domain points to your VPS and Caddy is configured properly.
 
-### Dockerized env
-#### Requirements:   
-- Docker installed
-1. After setting up Firebase, update your `.env` in `web` && `api` folder.
+### Dockerized environment
+
+#### Requirements
+
+- Docker with Compose
+- OpenSSL (or another cryptographically secure password generator)
+
+1. After setting up Firebase, create the web and API configuration files.
    ```bash
-   cd web && cp .env.example .env \
-   && cd ../api && cp .env.example .env
+    cd web && cp .env.example .env \
+    && cd ../api && cp .env.example .env
+    ```
+2. From the repository root, create the Compose secret file.
+   ```bash
+   cp .env.example .env
    ```
-2. Navigate to root folder and execute docker-compose.yml file.    
-   This will spin up `web` container, `api` container alongside with `MongoDB` and `MongoExpress`. `textbee` database will be automatically created.
+   Generate a different URL-safe value for each blank password. For example,
+   run `openssl rand -hex 32` four times and store the results in
+   `MONGO_ROOT_PASS`, `MONGO_APP_PASS`, `REDIS_PASSWORD`, and `JWT_SECRET`. Do
+   not commit any `.env` file.
+3. Update `api/.env` and `web/.env` with your Firebase, public URL, mail, and
+   authentication configuration. Compose supplies `MONGO_URI` and `REDIS_URL`
+   from the protected root `.env`.
+4. Start the stack.
    ```bash
-   docker compose up -d
+    docker compose up -d --remove-orphans
+    ```
+   MongoDB and Redis are reachable only on the private backend network. The API
+   and web listeners bind to host loopback for a local reverse proxy. The
+   `--remove-orphans` flag also removes the former, published mongo-express
+   service when upgrading an older installation.
+
+   To stop the containers without deleting their data volumes:
+   ```bash
+    docker compose down
    ```
-   To stop the containers simply type
-   ```bash
-   docker compose down
-   ```   
+
+The Mongo root account and application user are created only when `mongodb_data`
+is first initialized. For an existing volume, initially set `MONGO_ROOT_USER`
+and `MONGO_ROOT_PASS` to the credentials that already exist in MongoDB; changing
+these environment variables does not change an existing database user. Back up
+the database, create or rotate the `textbee_app` user with `readWrite` access to
+only the `textbee` database, verify the API connection, and then rotate the root
+account inside MongoDB before updating its values in `.env`. Use
+`docker compose up -d --remove-orphans` during this migration so the old,
+published mongo-express container cannot survive the upgrade. Never run
+`docker compose down -v` against a deployment whose data you need to preserve.
 
 ## Contributing
 
