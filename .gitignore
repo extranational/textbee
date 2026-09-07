@@ -5,8 +5,27 @@
 .cursor
 .claude/
 .omc/
-/.env
-/api/.env
-/web/.env
+.env
+.env.*
+!/.env.example
+!/web/.env.example
+
+# Signing material
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+key.properties
+keystore.properties
+signing.properties
+signing-*.properties
+
+# Local Firebase configuration and Android packages
+google-services.json
+*.apk
+*.aab
+*.apks
 # Rendered email previews (pnpm preview:emails)
 api/tmp/

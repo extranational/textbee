@@ -7,6 +7,9 @@
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+/.idea/deploymentTarget*.xml
+/.idea/AndroidProjectSystem.xml
+/.idea/runConfigurations.xml
 .DS_Store
 /build
 /captures
@@ -14,10 +17,3 @@
 .cxx
 local.properties
 /app/release/*
-
-*.apk
-
-# Firebase configuration files
-/app/src/dev/google-services.json
-/app/src/prod/google-services.json
-/app/google-services.json
