@@ -1,0 +1,56 @@
+name: Build container images
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main, dev]
+
+# Container releases require a separately approved release process.
+# This workflow only validates builds, including on version-tag pushes.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.context }} container
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        context: [api, web]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+        with:
+          platforms: arm64
+          cache-image: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        with:
+          driver: docker-container
+          cache-binary: false
+
+      - name: Validate container build
+        env:
+          BUILD_CONTEXT: ${{ matrix.context }}
+        # Keep results only in the temporary builder; do not export images.
+        run: |
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --output type=cacheonly \
+            "./${BUILD_CONTEXT}"
